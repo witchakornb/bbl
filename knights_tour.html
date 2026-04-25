@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Knight's Tour — 7 to 15</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #f5f4f0;
+      color: #1a1a1a;
+      padding: 2rem 1.5rem;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    button {
+      font-size: 14px;
+      padding: 7px 18px;
+      border-radius: 8px;
+      border: 0.5px solid #bbb;
+      background: #fff;
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    button:hover { background: #f0efeb; }
+    button:active { transform: scale(0.98); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #555;
+    }
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    #allBoards {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .board-section { }
+
+    .board-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .board-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .board-status {
+      font-size: 12px;
+      color: #888;
+    }
+
+    .board-grid {
+      display: inline-grid;
+      gap: 2px;
+      padding: 5px;
+      border-radius: 8px;
+      background: #e8e7e2;
+      border: 0.5px solid #ccc;
+      overflow-x: auto;
+    }
+
+    .cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      background: #fff;
+      font-weight: 500;
+      border: 0.5px solid #ddd;
+      transition: background 0.1s;
+      user-select: none;
+    }
+    .cell span {
+      opacity: 0;
+      transition: opacity 0.08s;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Knight's Tour</h1>
+<p class="subtitle">กระดาน 7×7 ถึง 15×15 (เลขคี่) — Warnsdorff's Rule + เงื่อนไขจุดกึ่งกลาง</p>
+
+<div class="controls">
+  <button id="solveAllBtn">แก้ทุกขนาด</button>
+  <button id="animAllBtn" style="display:none;">เล่น animation ทั้งหมด</button>
+  <button id="stopBtn" style="display:none;">หยุด</button>
+</div>
+
+<div class="legend">
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#1D9E75;"></div> จุดเริ่มต้น (1)
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#7F77DD;"></div> จุดกึ่งกลาง
+  </div>
+  <div class="legend-item">
+    <div class="legend-dot" style="background:#D85A30;"></div> จุดสิ้นสุด
+  </div>
+</div>
+
+<div id="allBoards"></div>
+
+<script>
+  /* ─── Knight's Tour Solver ─── */
+  function generateKnightsTour(n) {
+    if (n % 2 === 0) return null;
+
+    const board = Array.from({ length: n }, () => new Array(n).fill(0));
+    const directions = [
+      [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+      [1, -2],  [1, 2],  [2, -1],  [2, 1]
+    ];
+    const targetCenterStep = Math.floor((n * n + 1) / 2);
+    const centerPos = Math.floor(n / 2);
+
+    function isValid(r, c) {
+      return r >= 0 && r < n && c >= 0 && c < n && board[r][c] === 0;
+    }
+
+    function countOnwardMoves(r, c) {
+      let count = 0;
+      for (const [dr, dc] of directions)
+        if (isValid(r + dr, c + dc)) count++;
+      return count;
+    }
+
+    function solve(r, c, step) {
+      board[r][c] = step;
+
+      if (step === targetCenterStep && (r !== centerPos || c !== centerPos)) {
+        board[r][c] = 0;
+        return false;
+      }
+      if (r === centerPos && c === centerPos && step !== targetCenterStep) {
+        board[r][c] = 0;
+        return false;
+      }
+      if (step === n * n) return true;
+
+      const moves = [];
+      for (const [dr, dc] of directions) {
+        const nr = r + dr, nc = c + dc;
+        if (isValid(nr, nc))
+          moves.push([countOnwardMoves(nr, nc), nr, nc]);
+      }
+      moves.sort((a, b) => a[0] - b[0]);
+
+      for (const [, nr, nc] of moves)
+        if (solve(nr, nc, step + 1)) return true;
+
+      board[r][c] = 0;
+      return false;
+    }
+
+    return solve(0, 0, 1) ? board : null;
+  }
+
+  /* ─── UI Helpers ─── */
+  const SIZES = [7, 9, 11, 13, 15];
+  const results = {};
+  const animTimers = {};
+
+  function cellSize(n) {
+    if (n <= 7)  return 42;
+    if (n <= 9)  return 34;
+    if (n <= 11) return 28;
+    if (n <= 13) return 24;
+    return 21;
+  }
+  function fontSize(n) {
+    if (n <= 7)  return 13;
+    if (n <= 9)  return 11;
+    if (n <= 11) return 9;
+    return 8;
+  }
+
+  function buildSection(n) {
+    const wrap = document.createElement('div');
+    wrap.className = 'board-section';
+    wrap.id = `wrap-${n}`;
+
+    const header = document.createElement('div');
+    header.className = 'board-header';
+
+    const title = document.createElement('span');
+    title.className = 'board-title';
+    title.textContent = `${n} × ${n}`;
+
+    const status = document.createElement('span');
+    status.className = 'board-status';
+    status.id = `status-${n}`;
+    status.textContent = 'รอ...';
+
+    header.appendChild(title);
+    header.appendChild(status);
+
+    const grid = document.createElement('div');
+    grid.className = 'board-grid';
+    grid.id = `board-${n}`;
+
+    wrap.appendChild(header);
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  function buildGrid(n) {
+    const grid = document.getElementById(`board-${n}`);
+    const cs = cellSize(n), fs = fontSize(n);
+    grid.innerHTML = '';
+    grid.style.gridTemplateColumns = `repeat(${n}, ${cs}px)`;
+    for (let i = 0; i < n * n; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.style.width  = cs + 'px';
+      cell.style.height = cs + 'px';
+      cell.style.fontSize = fs + 'px';
+      const span = document.createElement('span');
+      cell.appendChild(span);
+      grid.appendChild(cell);
+    }
+  }
+
+  function renderBoard(n, board, upTo = Infinity) {
+    const total = n * n;
+    const cp = Math.floor(n / 2);
+    const cells = document.getElementById(`board-${n}`).querySelectorAll('.cell');
+    board.forEach((row, r) => {
+      row.forEach((val, c) => {
+        const cell = cells[r * n + c];
+        const show = val <= upTo;
+        let bg = '#fff', color = '#1a1a1a';
+        if (show) {
+          if (val === 1)             { bg = '#1D9E75'; color = '#04342C'; }
+          else if (r===cp && c===cp) { bg = '#7F77DD'; color = '#26215C'; }
+          else if (val === total)    { bg = '#D85A30'; color = '#4A1B0C'; }
+        }
+        cell.style.background = bg;
+        cell.style.color = color;
+        const span = cell.querySelector('span');
+        span.textContent = val;
+        span.style.opacity = show ? '1' : '0';
+      });
+    });
+  }
+
+  /* ─── Sequential solve ─── */
+  function solveNext(idx) {
+    if (idx >= SIZES.length) {
+      document.getElementById('animAllBtn').style.display = 'inline-block';
+      document.getElementById('solveAllBtn').disabled = false;
+      return;
+    }
+    const n = SIZES[idx];
+    const statusEl = document.getElementById(`status-${n}`);
+    statusEl.textContent = 'กำลังคำนวณ...';
+    buildGrid(n);
+    setTimeout(() => {
+      const t0 = performance.now();
+      const board = generateKnightsTour(n);
+      const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+      results[n] = board;
+      if (board) {
+        renderBoard(n, board);
+        statusEl.textContent = `เสร็จ (${elapsed}s)`;
+      } else {
+        statusEl.textContent = 'ไม่พบเส้นทาง';
+      }
+      solveNext(idx + 1);
+    }, 20);
+  }
+
+  /* ─── Buttons ─── */
+  document.getElementById('solveAllBtn').addEventListener('click', () => {
+    stopAll();
+    document.getElementById('animAllBtn').style.display = 'none';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('solveAllBtn').disabled = true;
+
+    const container = document.getElementById('allBoards');
+    container.innerHTML = '';
+    SIZES.forEach(n => container.appendChild(buildSection(n)));
+    solveNext(0);
+  });
+
+  document.getElementById('animAllBtn').addEventListener('click', () => {
+    stopAll();
+    document.getElementById('stopBtn').style.display = 'inline-block';
+    SIZES.forEach(n => {
+      if (!results[n]) return;
+      buildGrid(n);
+      const total = n * n;
+      const delay = n <= 7 ? 50 : n <= 9 ? 30 : n <= 11 ? 20 : 12;
+      let step = 1;
+      animTimers[n] = setInterval(() => {
+        renderBoard(results[n].length, results[n], step);
+        step++;
+        if (step > total) {
+          clearInterval(animTimers[n]);
+          delete animTimers[n];
+          if (Object.keys(animTimers).length === 0)
+            document.getElementById('stopBtn').style.display = 'none';
+        }
+      }, delay);
+    });
+  });
+
+  document.getElementById('stopBtn').addEventListener('click', stopAll);
+
+  function stopAll() {
+    Object.keys(animTimers).forEach(k => clearInterval(animTimers[k]));
+    Object.keys(animTimers).forEach(k => delete animTimers[k]);
+    document.getElementById('stopBtn').style.display = 'none';
+  }
+
+  /* ─── Auto-run on load ─── */
+  document.getElementById('solveAllBtn').click();
+</script>
+</body>
+</html>
