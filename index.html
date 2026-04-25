@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Knight's Tour</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #000000;
+            color: #f5f5f7;
+            overflow-x: hidden;
+        }
+
+        /* Apple-style typography classes */
+        .text-hero { font-size: clamp(3rem, 8vw, 7rem); letter-spacing: -0.04em; line-height: 1.05; }
+        .text-section { font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -0.02em; line-height: 1.1; }
+        .text-body { font-size: clamp(1rem, 2vw, 1.5rem); letter-spacing: -0.01em; color: #a1a1a6; }
+
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Board grid */
+        .board-grid {
+            display: grid;
+            gap: 2px;
+            padding: 2px;
+            background: #222;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .board-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            color: transparent;
+            font-weight: 600;
+            border-radius: 4px;
+            transition: background 0.3s ease, color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+
+        /* Hover Interaction classes */
+        .board-cell.highlighted {
+            background: #0A84FF; /* Electric Blue */
+            color: #fff;
+            box-shadow: 0 0 10px rgba(10, 132, 255, 0.5);
+        }
+
+        .board-cell.dimmed {
+            background: #0a0a0a !important;
+            color: transparent !important;
+            box-shadow: none !important;
+            transform: scale(0.98);
+        }
+
+        .board-cell.start-cell {
+            background: #1D9E75;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(29, 158, 117, 0.5);
+        }
+
+        .board-cell.center-cell {
+            background: #FFD60A; /* Gold */
+            color: #000;
+            box-shadow: 0 0 10px rgba(255, 214, 10, 0.5);
+        }
+
+        .board-cell.end-cell {
+            background: #FF453A;
+            color: #fff;
+            box-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
+        }
+
+        /* Hide scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+
+        .knight-icon {
+            font-size: clamp(4rem, 10vw, 8rem);
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
+            will-change: transform;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Hero Section -->
+    <section class="h-screen flex flex-col items-center justify-center relative px-6">
+        <div class="knight-icon mb-8 opacity-0">♞</div>
+        <h1 class="text-hero font-extrabold text-center opacity-0 transform translate-y-10" id="hero-title">
+            The Knight's Tour.
+        </h1>
+        <p class="text-body text-center mt-6 max-w-2xl opacity-0 transform translate-y-10" id="hero-subtitle">
+            A classic mathematical problem, visualized with precision and elegance. 
+            Scroll to uncover the logic.
+        </p>
+        <div class="absolute bottom-10 animate-bounce opacity-50" id="hero-scroll">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        </div>
+    </section>
+
+    <!-- Logic Section -->
+    <section class="min-h-screen py-24 px-6 relative z-10 flex flex-col justify-center max-w-5xl mx-auto">
+        <div class="space-y-32">
+            <div class="logic-block opacity-0 transform translate-y-16">
+                <h2 class="text-section font-bold text-white mb-6">Warnsdorff's Rule.</h2>
+                <p class="text-body max-w-3xl">
+                    To solve the tour efficiently, the knight always chooses the next square that has the 
+                    <strong class="text-white font-semibold">fewest onward moves</strong>. This simple yet profound heuristic elegantly avoids dead ends, 
+                    guiding the piece through complex grids with mathematical grace.
+                </p>
+            </div>
+            
+            <div class="logic-block opacity-0 transform translate-y-16">
+                <h2 class="text-section font-bold text-white mb-6">The Center Constraint.</h2>
+                <p class="text-body max-w-3xl">
+                    For a truly symmetrical journey, we enforce a strict condition on odd-sized boards: 
+                    the knight must land exactly on the <strong class="text-white font-semibold">center square</strong> at the exact midpoint of its tour 
+                    (<span class="italic font-serif text-white">step (n² + 1) / 2</span>).
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Lab Section -->
+    <section class="min-h-screen py-24 px-6 flex flex-col items-center justify-start bg-gradient-to-b from-[#000000] to-[#111]">
+        <div class="max-w-4xl w-full text-center mb-12">
+            <h2 class="text-section font-bold mb-4">Interactive Lab</h2>
+            <p class="text-body mb-10">Select a board size and witness the algorithm in action.</p>
+            
+            <div class="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-center gap-6 mx-auto w-fit">
+                <div class="flex items-center gap-3">
+                    <label for="boardSize" class="text-sm font-semibold tracking-wider text-gray-400 uppercase">Size (n)</label>
+                    <select id="boardSize" class="bg-[#222] border border-gray-700 text-white text-lg rounded-lg focus:ring-[#0A84FF] focus:border-[#0A84FF] block p-2 outline-none transition-colors">
+                        <option value="7">7 × 7</option>
+                        <option value="9">9 × 9</option>
+                        <option value="11">11 × 11</option>
+                        <option value="13">13 × 13</option>
+                        <option value="15">15 × 15</option>
+                    </select>
+                </div>
+                <button id="solveBtn" class="bg-white text-black hover:bg-gray-200 transition-colors font-semibold py-2 px-8 rounded-lg text-lg">
+                    Solve
+                </button>
+                <div id="statusText" class="text-sm text-gray-500 w-24 text-left">Ready.</div>
+            </div>
+        </div>
+
+        <div class="flex-1 w-full flex items-center justify-center relative min-h-[400px]">
+            <div id="boardContainer" class="board-grid"></div>
+        </div>
+    </section>
+
+    <script>
+        // GSAP Animations
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Hero Intro
+        const tl = gsap.timeline();
+        tl.to('.knight-icon', { opacity: 1, duration: 1, ease: 'power2.out' })
+          .to('#hero-title', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.5")
+          .to('#hero-subtitle', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.7");
+        
+        gsap.to('.knight-icon', {
+            y: -15,
+            rotation: 2,
+            duration: 2,
+            repeat: -1,
+            yoyo: true,
+            ease: 'sine.inOut'
+        });
+
+        // Scroll Reveals for Logic Section
+        gsap.utils.toArray('.logic-block').forEach(block => {
+            gsap.to(block, {
+                scrollTrigger: {
+                    trigger: block,
+                    start: "top 80%",
+                    toggleActions: "play none none reverse"
+                },
+                opacity: 1,
+                y: 0,
+                duration: 1,
+                ease: 'power3.out'
+            });
+        });
+
+        /* ─── Knight's Tour Algorithm ─── */
+        function generateKnightsTour(n) {
+            if (n % 2 === 0) return null;
+            
+            const board = Array.from({ length: n }, () => new Array(n).fill(0));
+            const directions = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2],  [1, 2],  [2, -1],  [2, 1]
+            ];
+            const targetCenterStep = Math.floor((n * n + 1) / 2);
+            const centerPos = Math.floor(n / 2);
+
+            function isValid(r, c) {
+                return r >= 0 && r < n && c >= 0 && c < n && board[r][c] === 0;
+            }
+
+            function countOnwardMoves(r, c) {
+                let count = 0;
+                for (const [dr, dc] of directions) {
+                    if (isValid(r + dr, c + dc)) count++;
+                }
+                return count;
+            }
+
+            function solve(r, c, step) {
+                board[r][c] = step;
+
+                // Middle Constraint
+                if (step === targetCenterStep && (r !== centerPos || c !== centerPos)) {
+                    board[r][c] = 0;
+                    return false;
+                }
+                if (r === centerPos && c === centerPos && step !== targetCenterStep) {
+                    board[r][c] = 0;
+                    return false;
+                }
+                
+                // Success
+                if (step === n * n) return true;
+
+                // Warnsdorff's heuristic
+                const moves = [];
+                for (const [dr, dc] of directions) {
+                    const nr = r + dr, nc = c + dc;
+                    if (isValid(nr, nc)) {
+                        moves.push([countOnwardMoves(nr, nc), nr, nc]);
+                    }
+                }
+                moves.sort((a, b) => a[0] - b[0]);
+
+                for (const [, nr, nc] of moves) {
+                    if (solve(nr, nc, step + 1)) return true;
+                }
+
+                board[r][c] = 0;
+                return false;
+            }
+
+            return solve(0, 0, 1) ? board : null;
+        }
+
+        /* ─── UI Interaction ─── */
+        const boardSizeSelect = document.getElementById('boardSize');
+        const solveBtn = document.getElementById('solveBtn');
+        const boardContainer = document.getElementById('boardContainer');
+        const statusText = document.getElementById('statusText');
+        
+        let currentBoard = null;
+        let animTimer = null;
+        let isAnimating = false;
+        let cellsArray = [];
+        let totalSteps = 0;
+        let currentStep = 0;
+
+        function getCellSize(n) {
+            // Responsive cell sizing
+            const maxBoardWidth = Math.min(window.innerWidth * 0.9, 700);
+            return Math.floor(maxBoardWidth / n) - 2; // subtracting gap
+        }
+
+        function createGrid(n) {
+            boardContainer.innerHTML = '';
+            boardContainer.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+            cellsArray = [];
+            
+            const cellSize = getCellSize(n);
+            let fontSize = cellSize * 0.4;
+            if (fontSize > 18) fontSize = 18;
+
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.fontSize = `${fontSize}px`;
+                    
+                    // Interaction logic
+                    cell.addEventListener('mouseenter', () => handleHover(cell));
+                    cell.addEventListener('mouseleave', handleHoverOut);
+                    
+                    boardContainer.appendChild(cell);
+                    cellsArray.push(cell);
+                }
+            }
+        }
+
+        function handleHover(hoveredCell) {
+            if (isAnimating || !currentBoard) return;
+            const stepValue = parseInt(hoveredCell.dataset.step);
+            if (!stepValue) return; // Unvisited cell
+
+            cellsArray.forEach(cell => {
+                const cellStep = parseInt(cell.dataset.step);
+                if (!cellStep) return;
+                
+                // Dim cells that are after the hovered step
+                if (cellStep > stepValue) {
+                    cell.classList.add('dimmed');
+                    cell.classList.remove('highlighted', 'start-cell', 'center-cell', 'end-cell');
+                } else {
+                    // Highlight the path up to the hovered step
+                    cell.classList.remove('dimmed');
+                    
+                    // Re-apply special colors or default highlight
+                    if (cellStep === 1) {
+                        cell.className = 'board-cell start-cell';
+                    } else if (cellStep === Math.floor((currentBoard.length * currentBoard.length + 1) / 2)) {
+                        cell.className = 'board-cell center-cell';
+                    } else if (cellStep === totalSteps && stepValue === totalSteps) {
+                        cell.className = 'board-cell end-cell';
+                    } else {
+                        cell.className = 'board-cell highlighted';
+                    }
+                }
+            });
+            
+            // Give hovered cell a special pop
+            gsap.to(hoveredCell, { scale: 1.1, duration: 0.2, zIndex: 10 });
+        }
+
+        function handleHoverOut() {
+            if (isAnimating || !currentBoard) return;
+            // Restore all to highlighted state based on the full tour
+            cellsArray.forEach(cell => {
+                gsap.to(cell, { scale: 1, duration: 0.2, zIndex: 1 });
+                cell.classList.remove('dimmed');
+                
+                const cellStep = parseInt(cell.dataset.step);
+                if (!cellStep) return;
+
+                if (cellStep === 1) {
+                    cell.className = 'board-cell start-cell';
+                } else if (cellStep === Math.floor((currentBoard.length * currentBoard.length + 1) / 2)) {
+                    cell.className = 'board-cell center-cell';
+                } else if (cellStep === totalSteps) {
+                    cell.className = 'board-cell end-cell';
+                } else {
+                    cell.className = 'board-cell highlighted';
+                }
+            });
+        }
+
+        function resetGrid() {
+            cellsArray.forEach(cell => {
+                cell.className = 'board-cell';
+                cell.textContent = '';
+                cell.dataset.step = '';
+            });
+            currentBoard = null;
+        }
+
+        solveBtn.addEventListener('click', () => {
+            if (isAnimating) {
+                // Stop animation
+                clearInterval(animTimer);
+                isAnimating = false;
+                solveBtn.textContent = 'Solve';
+                solveBtn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+                solveBtn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200');
+                statusText.textContent = 'Stopped.';
+                
+                // Show the full board instantly if stopped
+                if (currentBoard) {
+                    cellsArray.forEach(cell => {
+                        const step = parseInt(cell.dataset.step);
+                        if (step) {
+                            if (step === 1) cell.classList.add('start-cell');
+                            else if (step === Math.floor((currentBoard.length * currentBoard.length + 1) / 2)) cell.classList.add('center-cell');
+                            else if (step === totalSteps) cell.classList.add('end-cell');
+                            else cell.classList.add('highlighted');
+                        }
+                    });
+                }
+                return;
+            }
+
+            const n = parseInt(boardSizeSelect.value);
+            totalSteps = n * n;
+            
+            // If size changed or starting fresh
+            if (cellsArray.length !== totalSteps) {
+                createGrid(n);
+            } else {
+                resetGrid();
+            }
+            
+            statusText.textContent = 'Calculating...';
+            solveBtn.disabled = true;
+            solveBtn.classList.add('opacity-50');
+
+            // Use timeout to allow UI update before heavy computation
+            setTimeout(() => {
+                const start = performance.now();
+                currentBoard = generateKnightsTour(n);
+                const end = performance.now();
+                
+                if (!currentBoard) {
+                    statusText.textContent = 'No solution!';
+                    solveBtn.disabled = false;
+                    solveBtn.classList.remove('opacity-50');
+                    return;
+                }
+
+                statusText.textContent = `Solved (${((end - start) / 1000).toFixed(2)}s)`;
+                
+                // Map the board values to the DOM elements for easy access later
+                for (let r = 0; r < n; r++) {
+                    for (let c = 0; c < n; c++) {
+                        const step = currentBoard[r][c];
+                        const cell = cellsArray[r * n + c];
+                        cell.dataset.step = step;
+                        cell.textContent = step;
+                    }
+                }
+
+                startAnimation(n);
+                
+            }, 50);
+        });
+
+        function startAnimation(n) {
+            isAnimating = true;
+            solveBtn.disabled = false;
+            solveBtn.classList.remove('opacity-50', 'bg-white', 'text-black', 'hover:bg-gray-200');
+            solveBtn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
+            solveBtn.textContent = 'Stop';
+
+            currentStep = 1;
+            
+            // Adjust speed based on board size
+            const speed = n <= 7 ? 60 : n <= 11 ? 40 : 20;
+
+            animTimer = setInterval(() => {
+                // Find the cell for the current step
+                const cell = cellsArray.find(c => parseInt(c.dataset.step) === currentStep);
+                
+                if (cell) {
+                    if (currentStep === 1) {
+                        cell.classList.add('start-cell');
+                    } else if (currentStep === Math.floor((n * n + 1) / 2)) {
+                        cell.classList.add('center-cell');
+                    } else if (currentStep === totalSteps) {
+                        cell.classList.add('end-cell');
+                    } else {
+                        cell.classList.add('highlighted');
+                    }
+                    
+                    // Animate the pop effect
+                    gsap.fromTo(cell, 
+                        { scale: 0.8, opacity: 0.5 },
+                        { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' }
+                    );
+                }
+
+                currentStep++;
+                
+                if (currentStep > totalSteps) {
+                    clearInterval(animTimer);
+                    isAnimating = false;
+                    solveBtn.textContent = 'Solve';
+                    solveBtn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+                    solveBtn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200');
+                    statusText.textContent = 'Completed.';
+                }
+            }, speed);
+        }
+
+        // Initialize empty grid
+        createGrid(7);
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            const n = parseInt(boardSizeSelect.value);
+            const cellSize = getCellSize(n);
+            let fontSize = cellSize * 0.4;
+            if (fontSize > 18) fontSize = 18;
+
+            cellsArray.forEach(cell => {
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.fontSize = `${fontSize}px`;
+            });
+        });
+    </script>
+</body>
+</html>
