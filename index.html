@@ -149,6 +149,37 @@
                     <strong class="text-white font-semibold">fewest onward moves</strong>. This simple yet profound heuristic elegantly avoids dead ends, 
                     guiding the piece through complex grids with mathematical grace.
                 </p>
+
+                <div class="mt-8 bg-[#111] p-8 rounded-2xl border border-white/10 w-full max-w-2xl">
+                    <div class="text-base text-gray-400 mb-8 text-center">
+                        <p class="text-sm leading-relaxed mb-2">The numbers represent how many <strong>onward moves</strong> are available from that spot. The knight safely chooses a square with a minimum count to stay near the edges.</p>
+                        <p class="text-xs text-purple-400 italic font-semibold">Try the original pure Warnsdorff algorithm below (no center constraint)!</p>
+                    </div>
+
+                    <div class="flex flex-col items-center justify-center gap-6">
+                        <div class="flex flex-wrap items-center justify-center gap-4">
+                            <div class="flex items-center gap-2">
+                                <label for="wBoardSize" class="text-xs font-semibold tracking-wider text-gray-400 uppercase">Size</label>
+                                <select id="wBoardSize" class="bg-[#222] border border-gray-700 text-white text-sm rounded-lg focus:ring-[#BF5AF2] focus:border-[#BF5AF2] block p-1.5 outline-none transition-colors">
+                                    <option value="7">7 × 7</option>
+                                    <option value="9">9 × 9</option>
+                                    <option value="11">11 × 11</option>
+                                    <option value="13">13 × 13</option>
+                                    <option value="15">15 × 15</option>
+                                </select>
+                            </div>
+                            <button id="wSolveBtn" class="bg-[#BF5AF2] text-white hover:bg-[#a644d6] transition-colors font-semibold py-1.5 px-4 rounded-lg text-sm shadow-[0_0_15px_rgba(191,90,242,0.4)]">
+                                Solve (Pure Warnsdorff)
+                            </button>
+                            <div id="wStatusText" class="text-xs text-gray-500 w-20 text-left">Ready.</div>
+                        </div>
+                        
+                        <div class="relative w-fit h-fit mt-2">
+                            <div id="wBoardContainer" class="board-grid"></div>
+                            <svg id="wArrowOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></svg>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="logic-block opacity-0 transform translate-y-16">
@@ -603,6 +634,301 @@
             if (fontSize > 18) fontSize = 18;
 
             cellsArray.forEach(cell => {
+                cell.style.width = `${cellSize}px`;
+                cell.style.height = `${cellSize}px`;
+                cell.style.fontSize = `${fontSize}px`;
+            });
+        });
+
+        /* ─── Pure Warnsdorff Interactive Lab ─── */
+        function generatePureWarnsdorff(n) {
+            if (n % 2 === 0) return null;
+            
+            const board = Array.from({ length: n }, () => new Array(n).fill(0));
+            const directions = [
+                [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                [1, -2],  [1, 2],  [2, -1],  [2, 1]
+            ];
+
+            function isValid(r, c) {
+                return r >= 0 && r < n && c >= 0 && c < n && board[r][c] === 0;
+            }
+
+            function countOnwardMoves(r, c) {
+                let count = 0;
+                for (const [dr, dc] of directions) {
+                    if (isValid(r + dr, c + dc)) count++;
+                }
+                return count;
+            }
+
+            function solve(r, c, step) {
+                board[r][c] = step;
+                if (step === n * n) return true;
+
+                const moves = [];
+                for (const [dr, dc] of directions) {
+                    const nr = r + dr, nc = c + dc;
+                    if (isValid(nr, nc)) {
+                        moves.push([countOnwardMoves(nr, nc), nr, nc]);
+                    }
+                }
+                moves.sort((a, b) => a[0] - b[0]);
+
+                for (const [, nr, nc] of moves) {
+                    if (solve(nr, nc, step + 1)) return true;
+                }
+
+                board[r][c] = 0;
+                return false;
+            }
+
+            return solve(0, 0, 1) ? board : null;
+        }
+
+        const wBoardSizeSelect = document.getElementById('wBoardSize');
+        const wSolveBtn = document.getElementById('wSolveBtn');
+        const wBoardContainer = document.getElementById('wBoardContainer');
+        const wStatusText = document.getElementById('wStatusText');
+        
+        let wCurrentBoard = null;
+        let wAnimTimer = null;
+        let wIsAnimating = false;
+        let wCellsArray = [];
+        let wTotalSteps = 0;
+        let wCurrentStep = 0;
+
+        function wCreateGrid(n) {
+            wBoardContainer.innerHTML = '';
+            wBoardContainer.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+            wCellsArray = [];
+            
+            const maxBoardWidth = Math.min(window.innerWidth * 0.9, 450); // smaller for inline demo
+            const cellSize = Math.floor(maxBoardWidth / n) - 2;
+            let fontSize = cellSize * 0.4;
+            if (fontSize > 18) fontSize = 18;
+
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'board-cell';
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.fontSize = `${fontSize}px`;
+                    
+                    cell.addEventListener('mouseenter', () => wHandleHover(cell));
+                    cell.addEventListener('mouseleave', wHandleHoverOut);
+                    
+                    wBoardContainer.appendChild(cell);
+                    wCellsArray.push(cell);
+                }
+            }
+        }
+
+        function wDrawArrow(startCell, endCell) {
+            const svg = document.getElementById('wArrowOverlay');
+            if (!svg) return;
+            svg.innerHTML = '';
+            if (!startCell || !endCell) return;
+            
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'wArrowhead');
+            marker.setAttribute('markerWidth', '8');
+            marker.setAttribute('markerHeight', '6');
+            marker.setAttribute('refX', '8');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+            
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 8 3, 0 6');
+            polygon.setAttribute('fill', '#BF5AF2');
+            
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+            
+            const startRect = startCell.getBoundingClientRect();
+            const endRect = endCell.getBoundingClientRect();
+            const containerRect = svg.getBoundingClientRect();
+            
+            const x1 = startRect.left + startRect.width / 2 - containerRect.left;
+            const y1 = startRect.top + startRect.height / 2 - containerRect.top;
+            const x2 = endRect.left + endRect.width / 2 - containerRect.left;
+            const y2 = endRect.top + endRect.height / 2 - containerRect.top;
+            
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const r = startRect.width * 0.35; 
+            const adjustedX2 = x2 - Math.cos(angle) * r;
+            const adjustedY2 = y2 - Math.sin(angle) * r;
+            const adjustedX1 = x1 + Math.cos(angle) * r;
+            const adjustedY1 = y1 + Math.sin(angle) * r;
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', adjustedX1);
+            line.setAttribute('y1', adjustedY1);
+            line.setAttribute('x2', adjustedX2);
+            line.setAttribute('y2', adjustedY2);
+            line.setAttribute('stroke', '#BF5AF2');
+            line.setAttribute('stroke-width', '4');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('stroke-dasharray', '6,6');
+            line.setAttribute('marker-end', 'url(#wArrowhead)');
+            
+            svg.appendChild(line);
+        }
+
+        function wHandleHover(hoveredCell) {
+            if (wIsAnimating || !wCurrentBoard) return;
+            const stepValue = parseInt(hoveredCell.dataset.step);
+            if (!stepValue) return;
+
+            let nextCell = null;
+
+            wCellsArray.forEach(cell => {
+                const cellStep = parseInt(cell.dataset.step);
+                if (!cellStep) return;
+                
+                if (cellStep > stepValue + 1) {
+                    cell.classList.add('dimmed');
+                    cell.classList.remove('highlighted', 'start-cell', 'center-cell', 'end-cell', 'next-step-cell');
+                } else if (cellStep === stepValue + 1) {
+                    cell.className = 'board-cell next-step-cell';
+                    nextCell = cell;
+                } else {
+                    cell.classList.remove('dimmed', 'next-step-cell');
+                    if (cellStep === 1) cell.className = 'board-cell start-cell';
+                    else if (cellStep === wTotalSteps && stepValue === wTotalSteps) cell.className = 'board-cell end-cell';
+                    else cell.className = 'board-cell highlighted';
+                }
+            });
+            
+            gsap.to(hoveredCell, { scale: 1.1, duration: 0.2, zIndex: 10 });
+            if (nextCell) wDrawArrow(hoveredCell, nextCell);
+        }
+
+        function wHandleHoverOut() {
+            if (wIsAnimating || !wCurrentBoard) return;
+            const svg = document.getElementById('wArrowOverlay');
+            if (svg) svg.innerHTML = '';
+
+            wCellsArray.forEach(cell => {
+                gsap.to(cell, { scale: 1, duration: 0.2, zIndex: 1 });
+                cell.classList.remove('dimmed', 'next-step-cell');
+                const cellStep = parseInt(cell.dataset.step);
+                if (!cellStep) return;
+                if (cellStep === 1) cell.className = 'board-cell start-cell';
+                else if (cellStep === wTotalSteps) cell.className = 'board-cell end-cell';
+                else cell.className = 'board-cell highlighted';
+            });
+        }
+
+        wSolveBtn.addEventListener('click', () => {
+            if (wIsAnimating) {
+                clearInterval(wAnimTimer);
+                wIsAnimating = false;
+                wSolveBtn.textContent = 'Solve (Pure Warnsdorff)';
+                wSolveBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                wSolveBtn.classList.add('bg-[#BF5AF2]', 'hover:bg-[#a644d6]');
+                wStatusText.textContent = 'Stopped.';
+                
+                if (wCurrentBoard) {
+                    wCellsArray.forEach(cell => {
+                        const step = parseInt(cell.dataset.step);
+                        if (step) {
+                            if (step === 1) cell.classList.add('start-cell');
+                            else if (step === wTotalSteps) cell.classList.add('end-cell');
+                            else cell.classList.add('highlighted');
+                        }
+                    });
+                }
+                return;
+            }
+
+            const n = parseInt(wBoardSizeSelect.value);
+            wTotalSteps = n * n;
+            
+            if (wCellsArray.length !== wTotalSteps) wCreateGrid(n);
+            else {
+                wCellsArray.forEach(cell => {
+                    cell.className = 'board-cell';
+                    cell.textContent = '';
+                    cell.dataset.step = '';
+                });
+                wCurrentBoard = null;
+            }
+            
+            wStatusText.textContent = 'Calculating...';
+            wSolveBtn.disabled = true;
+            wSolveBtn.classList.add('opacity-50');
+
+            setTimeout(() => {
+                const start = performance.now();
+                wCurrentBoard = generatePureWarnsdorff(n);
+                const end = performance.now();
+                
+                if (!wCurrentBoard) {
+                    wStatusText.textContent = 'No solution!';
+                    wSolveBtn.disabled = false;
+                    wSolveBtn.classList.remove('opacity-50');
+                    return;
+                }
+
+                wStatusText.textContent = `Solved (${((end - start) / 1000).toFixed(2)}s)`;
+                
+                for (let r = 0; r < n; r++) {
+                    for (let c = 0; c < n; c++) {
+                        const step = wCurrentBoard[r][c];
+                        const cell = wCellsArray[r * n + c];
+                        cell.dataset.step = step;
+                        cell.textContent = step;
+                    }
+                }
+                wStartAnimation(n);
+            }, 50);
+        });
+
+        function wStartAnimation(n) {
+            wIsAnimating = true;
+            wSolveBtn.disabled = false;
+            wSolveBtn.classList.remove('opacity-50', 'bg-[#BF5AF2]', 'hover:bg-[#a644d6]');
+            wSolveBtn.classList.add('bg-red-500', 'hover:bg-red-600');
+            wSolveBtn.textContent = 'Stop';
+
+            wCurrentStep = 1;
+            const speed = n <= 7 ? 60 : n <= 11 ? 40 : 20;
+
+            wAnimTimer = setInterval(() => {
+                const cell = wCellsArray.find(c => parseInt(c.dataset.step) === wCurrentStep);
+                if (cell) {
+                    if (wCurrentStep === 1) cell.classList.add('start-cell');
+                    else if (wCurrentStep === wTotalSteps) cell.classList.add('end-cell');
+                    else cell.classList.add('highlighted');
+                    
+                    gsap.fromTo(cell, { scale: 0.8, opacity: 0.5 }, { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(1.7)' });
+                }
+                wCurrentStep++;
+                if (wCurrentStep > wTotalSteps) {
+                    clearInterval(wAnimTimer);
+                    wIsAnimating = false;
+                    wSolveBtn.textContent = 'Solve (Pure Warnsdorff)';
+                    wSolveBtn.classList.remove('bg-red-500', 'hover:bg-red-600');
+                    wSolveBtn.classList.add('bg-[#BF5AF2]', 'hover:bg-[#a644d6]');
+                    wStatusText.textContent = 'Completed.';
+                }
+            }, speed);
+        }
+
+        wCreateGrid(7);
+
+        window.addEventListener('resize', () => {
+            const n = parseInt(wBoardSizeSelect.value);
+            const maxBoardWidth = Math.min(window.innerWidth * 0.9, 450);
+            const cellSize = Math.floor(maxBoardWidth / n) - 2;
+            let fontSize = cellSize * 0.4;
+            if (fontSize > 18) fontSize = 18;
+
+            wCellsArray.forEach(cell => {
                 cell.style.width = `${cellSize}px`;
                 cell.style.height = `${cellSize}px`;
                 cell.style.fontSize = `${fontSize}px`;
