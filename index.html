@@ -129,6 +129,11 @@
             A classic mathematical problem, visualized with precision and elegance. 
             Scroll to uncover the logic.
         </p>
+        <div class="mt-8 opacity-0 transform translate-y-10" id="hero-btn">
+            <a href="animation-and-interactive-ui.html" class="inline-block bg-white text-black font-semibold py-3 px-8 rounded-full hover:bg-gray-200 transition-colors">
+                Explore Animation & Interactive UI
+            </a>
+        </div>
         <div class="absolute bottom-10 animate-bounce opacity-50" id="hero-scroll">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
         </div>
@@ -181,11 +186,18 @@
             </div>
         </div>
 
-        <div class="flex-1 w-full flex items-center justify-center relative min-h-[400px]">
+        <div class="flex-1 w-full flex items-center justify-center relative min-h-[400px] mb-8">
             <div class="relative w-fit h-fit mx-auto">
                 <div id="boardContainer" class="board-grid"></div>
                 <svg id="arrowOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></svg>
             </div>
+        </div>
+
+        <div class="w-full text-center mt-12 mb-8">
+            <p class="text-body text-gray-500 mb-6 text-sm">Want to take full control?</p>
+            <a href="animation-and-interactive-ui.html" class="inline-block bg-[#0A84FF] text-white font-semibold py-3 px-8 rounded-full hover:bg-blue-600 transition-colors shadow-[0_0_20px_rgba(10,132,255,0.4)] hover:shadow-[0_0_30px_rgba(10,132,255,0.6)] hover:-translate-y-1 transform duration-200">
+                Try Interactive Visualizer
+            </a>
         </div>
     </section>
 
@@ -197,7 +209,8 @@
         const tl = gsap.timeline();
         tl.to('.knight-icon', { opacity: 1, duration: 1, ease: 'power2.out' })
           .to('#hero-title', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.5")
-          .to('#hero-subtitle', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.7");
+          .to('#hero-subtitle', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.7")
+          .to('#hero-btn', { opacity: 1, y: 0, duration: 1, ease: 'power3.out' }, "-=0.8");
         
         gsap.to('.knight-icon', {
             y: -15,
