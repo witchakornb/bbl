@@ -87,6 +87,14 @@
             box-shadow: 0 0 10px rgba(255, 69, 58, 0.5);
         }
 
+        .board-cell.next-step-cell {
+            background: #BF5AF2; /* Electric Purple */
+            color: #fff;
+            box-shadow: 0 0 15px rgba(191, 90, 242, 0.8);
+            transform: scale(1.05);
+            z-index: 5;
+        }
+
         /* Hide scrollbar for cleaner look */
         ::-webkit-scrollbar {
             width: 8px;
@@ -174,7 +182,10 @@
         </div>
 
         <div class="flex-1 w-full flex items-center justify-center relative min-h-[400px]">
-            <div id="boardContainer" class="board-grid"></div>
+            <div class="relative w-fit h-fit mx-auto">
+                <div id="boardContainer" class="board-grid"></div>
+                <svg id="arrowOverlay" class="absolute top-0 left-0 w-full h-full pointer-events-none z-20"></svg>
+            </div>
         </div>
     </section>
 
@@ -319,22 +330,82 @@
             }
         }
 
+        function drawArrow(startCell, endCell) {
+            const svg = document.getElementById('arrowOverlay');
+            if (!svg) return;
+            svg.innerHTML = '';
+            if (!startCell || !endCell) return;
+            
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', 'arrowhead');
+            marker.setAttribute('markerWidth', '8');
+            marker.setAttribute('markerHeight', '6');
+            marker.setAttribute('refX', '8');
+            marker.setAttribute('refY', '3');
+            marker.setAttribute('orient', 'auto');
+            
+            const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            polygon.setAttribute('points', '0 0, 8 3, 0 6');
+            polygon.setAttribute('fill', '#BF5AF2');
+            
+            marker.appendChild(polygon);
+            defs.appendChild(marker);
+            svg.appendChild(defs);
+            
+            const startRect = startCell.getBoundingClientRect();
+            const endRect = endCell.getBoundingClientRect();
+            const containerRect = svg.getBoundingClientRect();
+            
+            const x1 = startRect.left + startRect.width / 2 - containerRect.left;
+            const y1 = startRect.top + startRect.height / 2 - containerRect.top;
+            const x2 = endRect.left + endRect.width / 2 - containerRect.left;
+            const y2 = endRect.top + endRect.height / 2 - containerRect.top;
+            
+            // Adjust x2, y2 slightly back so arrow doesn't overlap text completely
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const r = startRect.width * 0.35; // approximate distance from center to edge of cell text
+            const adjustedX2 = x2 - Math.cos(angle) * r;
+            const adjustedY2 = y2 - Math.sin(angle) * r;
+            const adjustedX1 = x1 + Math.cos(angle) * r;
+            const adjustedY1 = y1 + Math.sin(angle) * r;
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', adjustedX1);
+            line.setAttribute('y1', adjustedY1);
+            line.setAttribute('x2', adjustedX2);
+            line.setAttribute('y2', adjustedY2);
+            line.setAttribute('stroke', '#BF5AF2');
+            line.setAttribute('stroke-width', '4');
+            line.setAttribute('stroke-linecap', 'round');
+            line.setAttribute('stroke-dasharray', '6,6');
+            line.setAttribute('marker-end', 'url(#arrowhead)');
+            
+            svg.appendChild(line);
+        }
+
         function handleHover(hoveredCell) {
             if (isAnimating || !currentBoard) return;
             const stepValue = parseInt(hoveredCell.dataset.step);
             if (!stepValue) return; // Unvisited cell
 
+            let nextCell = null;
+
             cellsArray.forEach(cell => {
                 const cellStep = parseInt(cell.dataset.step);
                 if (!cellStep) return;
                 
-                // Dim cells that are after the hovered step
-                if (cellStep > stepValue) {
+                // Dim cells that are after the hovered step + 1
+                if (cellStep > stepValue + 1) {
                     cell.classList.add('dimmed');
-                    cell.classList.remove('highlighted', 'start-cell', 'center-cell', 'end-cell');
+                    cell.classList.remove('highlighted', 'start-cell', 'center-cell', 'end-cell', 'next-step-cell');
+                } else if (cellStep === stepValue + 1) {
+                    // Highlight the next step
+                    cell.className = 'board-cell next-step-cell';
+                    nextCell = cell;
                 } else {
                     // Highlight the path up to the hovered step
-                    cell.classList.remove('dimmed');
+                    cell.classList.remove('dimmed', 'next-step-cell');
                     
                     // Re-apply special colors or default highlight
                     if (cellStep === 1) {
@@ -351,14 +422,22 @@
             
             // Give hovered cell a special pop
             gsap.to(hoveredCell, { scale: 1.1, duration: 0.2, zIndex: 10 });
+
+            if (nextCell) {
+                drawArrow(hoveredCell, nextCell);
+            }
         }
 
         function handleHoverOut() {
             if (isAnimating || !currentBoard) return;
+            
+            const svg = document.getElementById('arrowOverlay');
+            if (svg) svg.innerHTML = '';
+
             // Restore all to highlighted state based on the full tour
             cellsArray.forEach(cell => {
                 gsap.to(cell, { scale: 1, duration: 0.2, zIndex: 1 });
-                cell.classList.remove('dimmed');
+                cell.classList.remove('dimmed', 'next-step-cell');
                 
                 const cellStep = parseInt(cell.dataset.step);
                 if (!cellStep) return;
